@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Guesser</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #2a2a3a;
+    --accent: #00ffcc;
+    --accent2: #ff4d6d;
+    --accent3: #ffd60a;
+    --text: #e8e8f0;
+    --muted: #6666aa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,204,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,204,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .glow-orb {
+    position: fixed;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,255,204,0.07) 0%, transparent 70%);
+    top: -200px; left: -200px;
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 8s ease-in-out infinite alternate;
+  }
+  .glow-orb2 {
+    position: fixed;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,109,0.06) 0%, transparent 70%);
+    bottom: -150px; right: -150px;
+    pointer-events: none;
+    z-index: 0;
+    animation: drift2 10s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift { from { transform: translate(0,0); } to { transform: translate(80px, 60px); } }
+  @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-60px, -80px); } }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 48px;
+    width: 460px;
+    max-width: 95vw;
+    box-shadow: 0 0 80px rgba(0,255,204,0.05), 0 40px 80px rgba(0,0,0,0.5);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+    font-weight: 400;
+  }
+
+  /* Attempts bar */
+  .attempts-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .attempts-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .attempts-label span {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .pips {
+    display: flex;
+    gap: 6px;
+  }
+  .pip {
+    width: 28px; height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    transition: background 0.3s ease;
+  }
+  .pip.used { background: var(--accent2); }
+  .pip.current { background: var(--accent); }
+
+  /* Range hint */
+  .range-bar {
+    position: relative;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 20px 0 28px;
+    overflow: visible;
+  }
+  .range-fill {
+    position: absolute;
+    top: 0; height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    transition: left 0.4s ease, right 0.4s ease;
+  }
+  .range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .range-labels .lo, .range-labels .hi {
+    transition: color 0.3s;
+  }
+
+  /* Input */
+  .input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  input[type="number"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 500;
+    padding: 14px 18px;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,255,204,0.1);
+  }
+
+  button {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 14px 20px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+    white-space: nowrap;
+  }
+  button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,255,204,0.25); }
+  button:active { transform: translateY(0); }
+
+  /* Feedback */
+  .feedback {
+    min-height: 60px;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    background: transparent;
+    border: 1px solid transparent;
+  }
+  .feedback.high { background: rgba(255,77,109,0.08); border-color: rgba(255,77,109,0.2); color: var(--accent2); }
+  .feedback.low  { background: rgba(0,255,204,0.06); border-color: rgba(0,255,204,0.15); color: var(--accent); }
+  .feedback.win  { background: rgba(255,214,10,0.08); border-color: rgba(255,214,10,0.25); color: var(--accent3); }
+  .feedback.lose { background: rgba(255,77,109,0.08); border-color: rgba(255,77,109,0.2); color: var(--accent2); }
+  .feedback.info { background: rgba(102,102,170,0.1); border-color: rgba(102,102,170,0.2); color: var(--muted); }
+
+  .emoji { font-size: 1.3rem; }
+
+  /* History */
+  .history {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .guess-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .guess-chip.high { border-color: rgba(255,77,109,0.3); color: var(--accent2); }
+  .guess-chip.low  { border-color: rgba(0,255,204,0.25); color: var(--accent); }
+
+  @keyframes popIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* Play again */
+  .play-again {
+    margin-top: 16px;
+    width: 100%;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .play-again:hover { border-color: var(--accent); box-shadow: 0 8px 24px rgba(0,255,204,0.1); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="glow-orb"></div>
+<div class="glow-orb2"></div>
+
+<div class="card">
+  <div class="tag">// Number Guesser</div>
+  <h1>Guess the <span>Number</span></h1>
+  <p class="subtitle">1 to 100 · 5 attempts · good luck</p>
+
+  <div class="attempts-row">
+    <div class="attempts-label">Attempts: <span id="attemptsText">0 / 5</span></div>
+    <div class="pips" id="pips">
+      <div class="pip" id="p1"></div>
+      <div class="pip" id="p2"></div>
+      <div class="pip" id="p3"></div>
+      <div class="pip" id="p4"></div>
+      <div class="pip" id="p5"></div>
+    </div>
+  </div>
+
+  <div class="range-bar">
+    <div class="range-fill" id="rangeFill" style="left:0%;right:0%"></div>
+  </div>
+  <div class="range-labels">
+    <span class="lo" id="loLabel">1</span>
+    <span class="hi" id="hiLabel">100</span>
+  </div>
+
+  <div class="input-group">
+    <input type="number" id="guessInput" min="1" max="100" placeholder="???" autofocus>
+    <button id="guessBtn" onclick="makeGuess()">GUESS</button>
+  </div>
+
+  <div class="feedback info" id="feedback">
+    <span class="emoji">🎯</span>
+    <span>Enter your first guess above!</span>
+  </div>
+
+  <div class="history" id="history"></div>
+
+  <button class="play-again hidden" id="playAgain" onclick="resetGame()">↺ Play Again</button>
+</div>
+
+<script>
+  let secret, attempts, maxAttempts, lo, hi, gameOver;
+
+  function resetGame() {
+    secret = Math.floor(Math.random() * 100) + 1;
+    attempts = 0;
+    maxAttempts = 5;
+    lo = 1; hi = 100;
+    gameOver = false;
+
+    document.getElementById('guessInput').value = '';
+    document.getElementById('guessInput').disabled = false;
+    document.getElementById('guessBtn').disabled = false;
+    document.getElementById('guessInput').focus();
+    document.getElementById('history').innerHTML = '';
+    document.getElementById('playAgain').classList.add('hidden');
+    document.getElementById('attemptsText').textContent = `0 / ${maxAttempts}`;
+    document.getElementById('feedback').className = 'feedback info';
+    document.getElementById('feedback').innerHTML = '<span class="emoji">🎯</span><span>Enter your first guess above!</span>';
+    document.getElementById('rangeFill').style.left = '0%';
+    document.getElementById('rangeFill').style.right = '0%';
+    document.getElementById('loLabel').textContent = '1';
+    document.getElementById('hiLabel').textContent = '100';
+    for (let i = 1; i <= 5; i++) {
+      document.getElementById('p' + i).className = 'pip';
+    }
+  }
+
+  function updatePips() {
+    for (let i = 1; i <= maxAttempts; i++) {
+      const pip = document.getElementById('p' + i);
+      if (i < attempts) pip.className = 'pip used';
+      else if (i === attempts) pip.className = 'pip current';
+      else pip.className = 'pip';
+    }
+  }
+
+  function updateRange() {
+    const leftPct = ((lo - 1) / 99) * 100;
+    const rightPct = ((100 - hi) / 99) * 100;
+    document.getElementById('rangeFill').style.left = leftPct + '%';
+    document.getElementById('rangeFill').style.right = rightPct + '%';
+    document.getElementById('loLabel').textContent = lo;
+    document.getElementById('hiLabel').textContent = hi;
+  }
+
+  function addChip(guess, type) {
+    const chip = document.createElement('div');
+    chip.className = `guess-chip ${type}`;
+    chip.textContent = guess + (type === 'high' ? ' ↑' : type === 'low' ? ' ↓' : ' ✓');
+    document.getElementById('history').appendChild(chip);
+  }
+
+  function makeGuess() {
+    if (gameOver) return;
+    const input = document.getElementById('guessInput');
+    const val = parseInt(input.value);
+
+    if (isNaN(val) || val < 1 || val > 100) {
+      document.getElementById('feedback').className = 'feedback info';
+      document.getElementById('feedback').innerHTML = '<span class="emoji">⚠️</span><span>Please enter a valid number between 1 and 100.</span>';
+      input.focus();
+      return;
+    }
+
+    attempts++;
+    document.getElementById('attemptsText').textContent = `${attempts} / ${maxAttempts}`;
+    updatePips();
+    input.value = '';
+
+    const fb = document.getElementById('feedback');
+
+    if (val === secret) {
+      fb.className = 'feedback win';
+      fb.innerHTML = `<span class="emoji">🎉</span><span>Correct! The number was <strong>${secret}</strong>. You got it in ${attempts} attempt${attempts > 1 ? 's' : ''}!</span>`;
+      addChip(val, 'win');
+      endGame();
+    } else if (val > secret) {
+      lo = lo; hi = Math.min(hi, val - 1);
+      fb.className = 'feedback high';
+      fb.innerHTML = `<span class="emoji">📉</span><span><strong>${val}</strong> is too high. Try lower!</span>`;
+      addChip(val, 'high');
+      updateRange();
+    } else {
+      lo = Math.max(lo, val + 1); hi = hi;
+      fb.className = 'feedback low';
+      fb.innerHTML = `<span class="emoji">📈</span><span><strong>${val}</strong> is too low. Try higher!</span>`;
+      addChip(val, 'low');
+      updateRange();
+    }
+
+    if (val !== secret && attempts >= maxAttempts) {
+      fb.className = 'feedback lose';
+      fb.innerHTML = `<span class="emoji">💀</span><span>Out of attempts! The number was <strong>${secret}</strong>.</span>`;
+      endGame();
+    }
+
+    input.focus();
+  }
+
+  function endGame() {
+    gameOver = true;
+    document.getElementById('guessInput').disabled = true;
+    document.getElementById('guessBtn').disabled = true;
+    document.getElementById('playAgain').classList.remove('hidden');
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') makeGuess();
+  });
+
+  resetGame();
+</script>
+</body>
+</html>
